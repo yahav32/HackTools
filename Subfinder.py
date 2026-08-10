@@ -1,3 +1,4 @@
+import argparse
 import curses
 import requests
 import sys
@@ -94,6 +95,24 @@ class WebScanner:
 
         return y
 
+    def scan_directories(self, words, stdscr, y):
+        base_url = self.build_base_url()
+
+        for word in words:
+            url = f"{base_url}/{word}"
+
+            try:
+                response = requests.get(url, timeout=0.5, allow_redirects=False)
+
+                if response.status_code in (200, 302, 301, 401, 403):
+                    self.print_message(f"[+] Directory: /{word} [{response.status_code}]", stdscr, y, "find")
+                    y += 1
+
+            except requests.RequestException:
+                pass
+
+        return y
+
     def run(self, stdscr):
         curses.use_default_colors()
 
@@ -125,28 +144,42 @@ class WebScanner:
         elif self.mode == "vhost":
             y = self.scan_vhosts(words, stdscr, y)
 
+        elif self.mode == "directory":
+            y = self.scan_directories(words, stdscr, y)
+
         self.print_message("[*] Scan finished. Press any key to exit...", stdscr, y, "note")
 
         stdscr.getch()
 
 
-def main(stdscr):
-    if len(sys.argv) != 4:
-        print("Usage: python scanner.py <target> <wordlist> <subdomain|vhost>")
-        return
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Subdomain, VHost, and Directory Scanner",
+        usage="python Subfinder.py -w <wordlist> -u <url> [-s | -d | -v]"
+    )
+    parser.add_argument("-w", dest="wordlist", required=True, help="Path to the wordlist file")
+    parser.add_argument("-u", dest="url", required=True, help="Target URL")
 
-    target = sys.argv[1]
-    wordlist = sys.argv[2]
-    mode = sys.argv[3].lower()
+    mode_group = parser.add_mutually_exclusive_group(required=True)
+    mode_group.add_argument("-s", "--subdomain", dest="subdomain", action="store_true", help="Subdomain enumeration mode")
+    mode_group.add_argument("-d", "--directory", dest="directory", action="store_true", help="Directory enumeration mode")
+    mode_group.add_argument("-v", "--vhost", dest="vhost", action="store_true", help="VHost enumeration mode")
 
-    if mode not in ("subdomain", "vhost"):
-        print("Mode must be: subdomain or vhost")
-        return
+    return parser.parse_args()
 
-    scanner = WebScanner(target=target, wordlist_path=wordlist, mode=mode)
 
+def main(stdscr, args):
+    if args.subdomain:
+        mode = "subdomain"
+    elif args.directory:
+        mode = "directory"
+    elif args.vhost:
+        mode = "vhost"
+
+    scanner = WebScanner(target=args.url, wordlist_path=args.wordlist, mode=mode)
     scanner.run(stdscr)
 
 
 if __name__ == "__main__":
-    wrapper(main)
+    args = parse_args()
+    wrapper(main, args)
