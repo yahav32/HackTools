@@ -1,4 +1,3 @@
-# Subdomain finder tool
 import requests
 import sys
 import curses
@@ -6,12 +5,15 @@ from curses import wrapper
 
 
 class Subfinder:
+    """
+    A subdomain finder tool that uses a wordlist to find subdomains of a given domain.
+    """
     def __init__(self, domain: str, wordlist_path: str=None):
         self.domain = domain
         self.wordlist_path = wordlist_path
 
     def print_message(self, message: str, stdscr, y: int, x: int, msg_type: str):
-        if msg_type == "finding":
+        if msg_type == "find":
             color = curses.color_pair(1)
         elif msg_type == "error":
             color = curses.color_pair(2)
@@ -56,11 +58,30 @@ class Subfinder:
         y += 1
         
         for word in wordlist:
-            subdomain = f"{word}.{self.domain}"
+            is_local = False
+            domain_part = self.domain
+            port_part = ""
+            if ":" in self.domain:
+                domain_part, port_part = self.domain.split(":", 1)
+                port_part = f":{port_part}"
+            
+            if domain_part in ["localhost", "127.0.0.1"]:
+                is_local = True
+                
+            if is_local:
+                # Bypasses local DNS resolution: send request to 127.0.0.1 and set Host header
+                target_url = f"http://127.0.0.1{port_part}"
+                headers = {"Host": f"{word}.localhost{port_part}"}
+                display_subdomain = f"{word}.localhost{port_part}"
+            else:
+                target_url = f"http://{word}.{self.domain}"
+                headers = {}
+                display_subdomain = f"{word}.{self.domain}"
+                
             try:
-                response = requests.get(f"http://{subdomain}")
+                response = requests.get(target_url, headers=headers, timeout=2)
                 if response.status_code == 200:
-                    self.print_message(f"[+] Found subdomain: {subdomain}", stdscr, y, 0, "finding")
+                    self.print_message(f"[+] Found subdomain: {display_subdomain}", stdscr, y, 0, "find")
                     y += 1
             except requests.exceptions.RequestException:
                 pass
