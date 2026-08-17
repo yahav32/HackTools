@@ -39,6 +39,7 @@ class NetworkScanner:
 
         print(f"{'IP Address':<15} | {'MAC Address'}")
         print("-" * 35)
+        print(f"[+] IP in the network: {len(answered)}")
         for sent, received in answered:
             print(f"{received.psrc:<15} | {received.hwsrc}")
 
