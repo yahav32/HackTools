@@ -38,6 +38,9 @@ class PortScanner:
 
     async def fast_scan(self, host: str, ports: List[int], concurrency: int = 500, timeout: float = 0.3) -> List[int]:
         """Scan multiple TCP ports concurrently."""
+        if concurrency <= 0:
+            raise ValueError("concurrency must be greater than 0")
+
         semaphore = asyncio.Semaphore(concurrency)
         tasks = [self.scan_port(host, port, semaphore, timeout) for port in ports]
         results = await asyncio.gather(*tasks)
