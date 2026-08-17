@@ -81,3 +81,72 @@ class InfoGrabber:
 
 
 
+async def main():
+    target_host = "127.0.0.1"
+    ports_to_scan = list(range(1, 1025))
+    port_range_str = f"{ports_to_scan[0]}-{ports_to_scan[-1]}"
+    scan_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    print("=" * 60)
+    print(f"Starting Scan for target: {target_host}")
+    print(f"Port Range: {port_range_str}")
+    print(f"Scan Timestamp: {scan_timestamp}")
+    print("=" * 60)
+
+    print("\n>>> [1/3] RUNNING ASYNC PORT SCAN <<<")
+
+    scanner = PortScanner()
+    start_p1 = time.perf_counter()
+    open_ports = await scanner.fast_scan(host=target_host, ports=ports_to_scan, concurrency=500, timeout=0.3)
+    p1_time = time.perf_counter() - start_p1
+
+    print(f"[Phase 1] Async Python Scan Completed. Discovered Open Ports: {open_ports}")
+    print(f"Scan Time: {p1_time:.3f} seconds")
+
+    print("\n>>> [2/3] RUNNING TARGETED NMAP SCAN <<<")
+
+    info_grabber = InfoGrabber(host=target_host, open_ports=open_ports)
+
+    if open_ports:
+        print(f"Running Nmap on discovered ports: {open_ports}")
+        hybrid_nmap_output, nmap_time = info_grabber.nmap_scan()
+        print(f"Targeted Nmap Time: {nmap_time:.3f} seconds")
+        print("\nTargeted Nmap Output:")
+        print(hybrid_nmap_output)
+    else:
+        print("No open ports found. Skipping targeted Nmap.")
+        hybrid_nmap_output = ""
+        nmap_time = 0.0
+
+    hybrid_total_time = p1_time + nmap_time
+
+    print("\n>>> [3/3] RUNNING PURE NMAP SCAN <<<")
+
+    pure_nmap_output, pure_nmap_time = info_grabber.nmap_scan(ports=ports_to_scan)
+
+    print("\nPure Nmap Output:")
+    print(pure_nmap_output)
+
+    print("\n" + "=" * 60)
+    print("PERFORMANCE & EXECUTION TIME COMPARISON")
+    print("=" * 60)
+    print(f"Hybrid - Python Discovery: {p1_time:.3f} seconds")
+    print(f"Hybrid - Targeted Nmap: {nmap_time:.3f} seconds")
+    print(f"Hybrid TOTAL: {hybrid_total_time:.3f} seconds")
+    print("-" * 60)
+    print(f"Pure Nmap: {pure_nmap_time:.3f} seconds")
+    print("=" * 60)
+
+    if hybrid_total_time > 0 and pure_nmap_time > 0:
+        if pure_nmap_time > hybrid_total_time:
+            time_saved = pure_nmap_time - hybrid_total_time
+            speedup = pure_nmap_time / hybrid_total_time
+            print(f"RESULT: Hybrid Scan was {speedup:.2f}x faster! Saved: {time_saved:.3f} seconds")
+        else:
+            print("RESULT: Pure Nmap was comparable or faster.")
+
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
