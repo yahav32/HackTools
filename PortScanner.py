@@ -43,4 +43,41 @@ class PortScanner:
         results = await asyncio.gather(*tasks)
         return sorted(port for port in results if port is not None)
 
+class InfoGrabber:
+
+    def __init__(self, host: str, open_ports: Optional[List[int]] = None):
+        self.host = host
+        self.open_ports = open_ports or []
+
+    def nmap_scan(self, ports: Optional[List[int]] = None):
+        """Run Nmap service detection."""
+        scan_ports = ports if ports is not None else self.open_ports
+
+        if not scan_ports:
+            return "No ports specified for Nmap scan.", 0.0
+
+        nmap_exe = get_nmap_path()
+
+        if not nmap_exe:
+            return "Error: Nmap is not installed on the system.", 0.0
+
+        port_str = ",".join(map(str, scan_ports))
+
+        cmd = [nmap_exe, "-sV", "--version-light", "-p", port_str, self.host]
+
+        start_time = time.perf_counter()
+
+        try:
+            completed = subprocess.run(cmd, capture_output=True, text=True, shell=False, check=False)
+            elapsed = time.perf_counter() - start_time
+
+            if completed.returncode != 0:
+                return f"Nmap error:\n{completed.stderr}", elapsed
+
+            return completed.stdout, elapsed
+
+        except OSError as e:
+            return f"Error running Nmap: {e}", 0.0
+
+
 
