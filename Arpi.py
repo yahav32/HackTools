@@ -1,3 +1,4 @@
+import argparse
 from typing import Tuple
 
 from scapy.all import Ether, ARP, srp, sniff
@@ -22,13 +23,11 @@ class NetworkValidator:
         return self.__subnet_mask
 
 class NetworkScanner:
-    def __init__(self):
+    def __init__(self, network: str):
         self.__broadcast = "ff:ff:ff:ff:ff:ff"
-
+        self.__network = network
     def start(self):
-        ip = input("Enter IP: ")
-        subnetmask = input("Enter subnetmask: ")
-        validator = NetworkValidator(ip, subnetmask)
+        validator = NetworkValidator(*self.__network.split("/", 1))
         network = validator.get_network()[1]
 
         print(network)
@@ -43,6 +42,16 @@ class NetworkScanner:
         for sent, received in answered:
             print(f"{received.psrc:<15} | {received.hwsrc}")
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="ARP Network Scanner")
+    parser.add_argument("-n", "--network", required=True, help="Network in CIDR format, example: 192.168.1.10/24")
+    return parser.parse_args()
 
-scn = NetworkScanner().start()
+def main():
+    args = parse_args()
+    scanner = NetworkScanner(args.network)
+    scanner.start()
 
+
+if __name__ == "__main__":
+    main()
